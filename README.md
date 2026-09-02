@@ -1,2 +1,2 @@
 # pm_scheduler
-test rust wasm build
+Site is live at: https://saptakdutta.github.io/pm_scheduler/

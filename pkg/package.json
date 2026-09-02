@@ -1,0 +1,15 @@
+{
+  "name": "pm_scheduler",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "pm_scheduler_bg.wasm",
+    "pm_scheduler.js",
+    "pm_scheduler.d.ts"
+  ],
+  "main": "pm_scheduler.js",
+  "types": "pm_scheduler.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

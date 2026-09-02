@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>PM Scheduler — Step 5</title>
+    <style>
+      body { font-family: sans-serif; max-width: 720px; margin: 2rem auto; }
+      label { display: block; margin: 0.5rem 0 0.2rem; font-weight: bold; }
+      input { font-size: 1rem; padding: 0.4rem; width: 100%; box-sizing: border-box; }
+      button { font-size: 1rem; padding: 0.5rem 1rem; margin-top: 0.5rem; cursor: pointer; }
+      .project { border: 1px solid #ccc; border-radius: 6px; padding: 1rem; margin: 0.75rem 0; }
+      .project h3 { margin: 0 0 0.3rem; }
+      .milestone { margin-left: 1rem; }
+      .done { color: #2a5; }
+      .pending { color: #a60; }
+      .error { color: #c00; font-weight: bold; }
+      #summary { margin-top: 1rem; font-size: 1.1rem; color: #2a5; font-weight: bold; }
+      fieldset { margin-top: 1rem; }
+      .pending-ms { font-size: 0.95rem; color: #555; margin: 0.3rem 0; }
+      .row { display: flex; gap: 0.5rem; }
+    </style>
+  </head>
+  <body>
+    <h1>PM Scheduler — Step 5</h1>
+
+    <fieldset>
+      <legend>Load a saved schedule</legend>
+      <input id="load-input" type="file" accept=".json,application/json" />
+    </fieldset>
+
+    <label for="name">Project name</label>
+    <input id="name" type="text" placeholder="e.g. Website Redesign" />
+
+    <label for="hours">Hours assigned</label>
+    <input id="hours" type="number" min="0" value="0" />
+
+    <label for="colleagues">Colleagues (comma-separated)</label>
+    <input id="colleagues" type="text" placeholder="e.g. Alex, Sam, Jordan" />
+
+    <fieldset>
+      <legend>Milestones for this project</legend>
+      <div class="row">
+        <input id="ms-title" type="text" placeholder="Milestone title" />
+        <input id="ms-date" type="date" />
+      </div>
+      <button id="add-ms-btn">Add milestone</button>
+      <div id="pending-ms-list"></div>
+    </fieldset>
+
+    <button id="add-btn">Add project</button>
+    <p id="error" class="error"></p>
+
+    <h2>Projects</h2>
+    <div id="project-list"></div>
+    <div id="summary"></div>
+
+    <button id="save-btn">💾 Save to schedule.json</button>
+
+    <script type="module">
+      import init, { make_project, total_hours, serialize_projects, load_projects }
+        from "./pkg/pm_scheduler.js";
+
+      let projects = [];          // all added projects
+      let pendingMilestones = []; // milestones for the project being built
+
+      async function run() {
+        await init();
+
+        const nameInput = document.getElementById("name");
+        const hoursInput = document.getElementById("hours");
+        const colleaguesInput = document.getElementById("colleagues");
+        const msTitle = document.getElementById("ms-title");
+        const msDate = document.getElementById("ms-date");
+        const errorEl = document.getElementById("error");
+
+        // Add a milestone to the pending list (for the current project).
+        document.getElementById("add-ms-btn").addEventListener("click", () => {
+          const title = msTitle.value.trim();
+          if (!title) return;
+          pendingMilestones.push({
+            title: title,
+            due_date: msDate.value || "",
+            completed: false,
+          });
+          msTitle.value = "";
+          msDate.value = "";
+          renderPendingMilestones();
+        });
+
+        // Add the whole project.
+        document.getElementById("add-btn").addEventListener("click", () => {
+          errorEl.textContent = "";
+          const name = nameInput.value;
+          const hours = parseInt(hoursInput.value, 10) || 0;
+          const colleagues = colleaguesInput.value;
+
+          // Pass milestones to Rust as a JSON array string.
+          const resultJson = make_project(
+            name, hours, colleagues, JSON.stringify(pendingMilestones)
+          );
+          const result = JSON.parse(resultJson);
+
+          if (result.error) {
+            errorEl.textContent = result.error;
+            return;
+          }
+
+          projects.push(result);
+          // Reset the form.
+          nameInput.value = "";
+          hoursInput.value = "0";
+          colleaguesInput.value = "";
+          pendingMilestones = [];
+          renderPendingMilestones();
+          render();
+        });
+
+        // Save all projects to a downloadable JSON file.
+        document.getElementById("save-btn").addEventListener("click", () => {
+          if (projects.length === 0) {
+            errorEl.textContent = "Nothing to save yet.";
+            return;
+          }
+          // Ask Rust to produce clean, validated JSON.
+          const json = serialize_projects(JSON.stringify(projects));
+          downloadFile("schedule.json", json);
+        });
+
+        // Load a schedule from an uploaded .json file.
+        document.getElementById("load-input").addEventListener("change", (event) => {
+          errorEl.textContent = "";
+          const file = event.target.files[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+
+          reader.onload = () => {
+            const text = reader.result;
+
+            // Ask RUST to validate and parse the file.
+            const resultJson = load_projects(text);
+            const result = JSON.parse(resultJson);
+
+            // Rust returns an object with .error if the file is invalid.
+            if (result.error) {
+              errorEl.textContent = result.error;
+              return;
+            }
+
+            // Replace our in-memory projects with the loaded ones.
+            projects = result;
+            pendingMilestones = [];
+            renderPendingMilestones();
+            render();
+          };
+
+          reader.onerror = () => {
+            errorEl.textContent = "Could not read that file.";
+          };
+
+          reader.readAsText(file);
+
+          // Reset the input so selecting the same file again still fires "change".
+          event.target.value = "";
+        });
+
+        render();
+        renderPendingMilestones();
+      }
+
+      // The browser download trick: Blob -> object URL -> temporary <a> click.
+      function downloadFile(filename, text) {
+        const blob = new Blob([text], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url); // free the memory
+      }
+
+      function renderPendingMilestones() {
+        const el = document.getElementById("pending-ms-list");
+        el.innerHTML = "";
+        pendingMilestones.forEach((m) => {
+          const d = document.createElement("div");
+          d.className = "pending-ms";
+          d.textContent = `• ${m.title}${m.due_date ? " (due " + m.due_date + ")" : ""}`;
+          el.appendChild(d);
+        });
+      }
+
+      function render() {
+        const listEl = document.getElementById("project-list");
+        listEl.innerHTML = "";
+
+        projects.forEach((p) => {
+          const div = document.createElement("div");
+          div.className = "project";
+          const people = p.colleagues.length ? p.colleagues.join(", ") : "(none)";
+
+          let milestonesHtml = "";
+          if (p.milestones.length) {
+            milestonesHtml = "<div><strong>Milestones:</strong></div>";
+            p.milestones.forEach((m) => {
+              const cls = m.completed ? "done" : "pending";
+              const status = m.completed ? "✓" : "○";
+              const date = m.due_date ? " — due " + m.due_date : "";
+              milestonesHtml +=
+                `<div class="milestone ${cls}">${status} ${m.title}${date}</div>`;
+            });
+          }
+
+          div.innerHTML = `
+            <h3>${p.name}</h3>
+            <div><strong>Hours:</strong> ${p.hours_assigned}</div>
+            <div><strong>Colleagues:</strong> ${people}</div>
+            ${milestonesHtml}
+          `;
+          listEl.appendChild(div);
+        });
+
+        const summaryEl = document.getElementById("summary");
+        if (projects.length > 0) {
+          const total = total_hours(JSON.stringify(projects));
+          summaryEl.textContent = `${projects.length} project(s), ${total} total hours.`;
+        } else {
+          summaryEl.textContent = "No projects yet.";
+        }
+      }
+
+      run();
+    </script>
+  </body>
+</html>

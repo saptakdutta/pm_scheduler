@@ -2,13 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>PM Scheduler — Step 5</title>
+    <title>PM Scheduler</title>
     <style>
       body { font-family: sans-serif; max-width: 720px; margin: 2rem auto; }
       label { display: block; margin: 0.5rem 0 0.2rem; font-weight: bold; }
       input { font-size: 1rem; padding: 0.4rem; width: 100%; box-sizing: border-box; }
       button { font-size: 1rem; padding: 0.5rem 1rem; margin-top: 0.5rem; cursor: pointer; }
-      .project { border: 1px solid #ccc; border-radius: 6px; padding: 1rem; margin: 0.75rem 0; }
+      .project { border: 1px solid #ccc; border-radius: 6px; padding: 1rem; margin: 0.75rem 0; position: relative; }
       .project h3 { margin: 0 0 0.3rem; }
       .milestone { margin-left: 1rem; }
       .done { color: #2a5; }
@@ -18,10 +18,12 @@
       fieldset { margin-top: 1rem; }
       .pending-ms { font-size: 0.95rem; color: #555; margin: 0.3rem 0; }
       .row { display: flex; gap: 0.5rem; }
+      .delete-btn { background: #fee; border: 1px solid #c99; color: #c00; padding: 0.3rem 0.7rem; font-size: 0.9rem; margin-top: 0.5rem; }
+      .delete-btn:hover { background: #fdd; }
     </style>
   </head>
   <body>
-    <h1>PM Scheduler — Step 5</h1>
+    <h1>PM Scheduler</h1>
 
     <fieldset>
       <legend>Load a saved schedule</legend>
@@ -60,8 +62,8 @@
       import init, { make_project, total_hours, serialize_projects, load_projects }
         from "./pkg/pm_scheduler.js";
 
-      let projects = [];          // all added projects
-      let pendingMilestones = []; // milestones for the project being built
+      let projects = [];
+      let pendingMilestones = [];
 
       async function run() {
         await init();
@@ -73,7 +75,6 @@
         const msDate = document.getElementById("ms-date");
         const errorEl = document.getElementById("error");
 
-        // Add a milestone to the pending list (for the current project).
         document.getElementById("add-ms-btn").addEventListener("click", () => {
           const title = msTitle.value.trim();
           if (!title) return;
@@ -87,14 +88,12 @@
           renderPendingMilestones();
         });
 
-        // Add the whole project.
         document.getElementById("add-btn").addEventListener("click", () => {
           errorEl.textContent = "";
           const name = nameInput.value;
           const hours = parseInt(hoursInput.value, 10) || 0;
           const colleagues = colleaguesInput.value;
 
-          // Pass milestones to Rust as a JSON array string.
           const resultJson = make_project(
             name, hours, colleagues, JSON.stringify(pendingMilestones)
           );
@@ -106,7 +105,6 @@
           }
 
           projects.push(result);
-          // Reset the form.
           nameInput.value = "";
           hoursInput.value = "0";
           colleaguesInput.value = "";
@@ -115,18 +113,15 @@
           render();
         });
 
-        // Save all projects to a downloadable JSON file.
         document.getElementById("save-btn").addEventListener("click", () => {
           if (projects.length === 0) {
             errorEl.textContent = "Nothing to save yet.";
             return;
           }
-          // Ask Rust to produce clean, validated JSON.
           const json = serialize_projects(JSON.stringify(projects));
           downloadFile("schedule.json", json);
         });
 
-        // Load a schedule from an uploaded .json file.
         document.getElementById("load-input").addEventListener("change", (event) => {
           errorEl.textContent = "";
           const file = event.target.files[0];
@@ -136,18 +131,14 @@
 
           reader.onload = () => {
             const text = reader.result;
-
-            // Ask RUST to validate and parse the file.
             const resultJson = load_projects(text);
             const result = JSON.parse(resultJson);
 
-            // Rust returns an object with .error if the file is invalid.
             if (result.error) {
               errorEl.textContent = result.error;
               return;
             }
 
-            // Replace our in-memory projects with the loaded ones.
             projects = result;
             pendingMilestones = [];
             renderPendingMilestones();
@@ -159,8 +150,6 @@
           };
 
           reader.readAsText(file);
-
-          // Reset the input so selecting the same file again still fires "change".
           event.target.value = "";
         });
 
@@ -168,7 +157,6 @@
         renderPendingMilestones();
       }
 
-      // The browser download trick: Blob -> object URL -> temporary <a> click.
       function downloadFile(filename, text) {
         const blob = new Blob([text], { type: "application/json" });
         const url = URL.createObjectURL(blob);
@@ -178,7 +166,13 @@
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        URL.revokeObjectURL(url); // free the memory
+        URL.revokeObjectURL(url);
+      }
+
+      // Delete a project by its index, then refresh.
+      function deleteProject(index) {
+        projects.splice(index, 1); // remove 1 item at position `index`
+        render();
       }
 
       function renderPendingMilestones() {
@@ -196,7 +190,7 @@
         const listEl = document.getElementById("project-list");
         listEl.innerHTML = "";
 
-        projects.forEach((p) => {
+        projects.forEach((p, index) => {
           const div = document.createElement("div");
           div.className = "project";
           const people = p.colleagues.length ? p.colleagues.join(", ") : "(none)";
@@ -219,6 +213,14 @@
             <div><strong>Colleagues:</strong> ${people}</div>
             ${milestonesHtml}
           `;
+
+          // Create the delete button and wire it up.
+          const delBtn = document.createElement("button");
+          delBtn.className = "delete-btn";
+          delBtn.textContent = "🗑 Delete";
+          delBtn.addEventListener("click", () => deleteProject(index));
+          div.appendChild(delBtn);
+
           listEl.appendChild(div);
         });
 

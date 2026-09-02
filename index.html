@@ -56,7 +56,13 @@
     <div id="project-list"></div>
     <div id="summary"></div>
 
-    <button id="save-btn">💾 Save to schedule.json</button>
+    <div class="row" style="align-items: flex-end;">
+      <div style="flex: 1;">
+        <label for="filename">File name</label>
+        <input id="filename" type="text" value="schedule" placeholder="schedule" />
+      </div>
+      <button id="save-btn">💾 Save</button>
+    </div>
 
     <script type="module">
       import init, { make_project, total_hours, serialize_projects, load_projects }
@@ -118,8 +124,19 @@
             errorEl.textContent = "Nothing to save yet.";
             return;
           }
+
+          // Read the user's chosen filename, with sensible fallbacks.
+          let filename = document.getElementById("filename").value.trim();
+          if (!filename) {
+            filename = "schedule"; // fallback if left blank
+          }
+          // Auto-append .json if the user didn't include it.
+          if (!filename.toLowerCase().endsWith(".json")) {
+            filename += ".json";
+          }
+
           const json = serialize_projects(JSON.stringify(projects));
-          downloadFile("schedule.json", json);
+          downloadFile(filename, json);
         });
 
         document.getElementById("load-input").addEventListener("change", (event) => {
@@ -171,7 +188,7 @@
 
       // Delete a project by its index, then refresh.
       function deleteProject(index) {
-        projects.splice(index, 1); // remove 1 item at position `index`
+        projects.splice(index, 1);
         render();
       }
 
@@ -214,7 +231,6 @@
             ${milestonesHtml}
           `;
 
-          // Create the delete button and wire it up.
           const delBtn = document.createElement("button");
           delBtn.className = "delete-btn";
           delBtn.textContent = "🗑 Delete";

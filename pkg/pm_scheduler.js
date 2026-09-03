@@ -1,6 +1,28 @@
 /* @ts-self-types="./pm_scheduler.d.ts" */
 
 /**
+ * @param {string} projects_json
+ * @param {string} group_by
+ * @returns {string}
+ */
+export function build_gantt(projects_json, group_by) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const ptr0 = passStringToWasm0(projects_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(group_by, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.build_gantt(ptr0, len0, ptr1, len1);
+        deferred3_0 = ret[0];
+        deferred3_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
  * @param {string} file_contents
  * @returns {string}
  */
@@ -23,25 +45,28 @@ export function load_projects(file_contents) {
  * @param {string} name
  * @param {number} hours
  * @param {string} colleagues_csv
+ * @param {string} tasks_json
  * @param {string} milestones_json
  * @returns {string}
  */
-export function make_project(name, hours, colleagues_csv, milestones_json) {
-    let deferred4_0;
-    let deferred4_1;
+export function make_project(name, hours, colleagues_csv, tasks_json, milestones_json) {
+    let deferred5_0;
+    let deferred5_1;
     try {
         const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         const ptr1 = passStringToWasm0(colleagues_csv, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len1 = WASM_VECTOR_LEN;
-        const ptr2 = passStringToWasm0(milestones_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const ptr2 = passStringToWasm0(tasks_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len2 = WASM_VECTOR_LEN;
-        const ret = wasm.make_project(ptr0, len0, hours, ptr1, len1, ptr2, len2);
-        deferred4_0 = ret[0];
-        deferred4_1 = ret[1];
+        const ptr3 = passStringToWasm0(milestones_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len3 = WASM_VECTOR_LEN;
+        const ret = wasm.make_project(ptr0, len0, hours, ptr1, len1, ptr2, len2, ptr3, len3);
+        deferred5_0 = ret[0];
+        deferred5_1 = ret[1];
         return getStringFromWasm0(ret[0], ret[1]);
     } finally {
-        wasm.__wbindgen_free(deferred4_0, deferred4_1, 1);
+        wasm.__wbindgen_free(deferred5_0, deferred5_1, 1);
     }
 }
 

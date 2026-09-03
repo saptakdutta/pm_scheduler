@@ -2,83 +2,208 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PM Scheduler</title>
     <style>
-      body { font-family: sans-serif; max-width: 720px; margin: 2rem auto; }
-      label { display: block; margin: 0.5rem 0 0.2rem; font-weight: bold; }
-      input { font-size: 1rem; padding: 0.4rem; width: 100%; box-sizing: border-box; }
-      button { font-size: 1rem; padding: 0.5rem 1rem; margin-top: 0.5rem; cursor: pointer; }
-      .project { border: 1px solid #ccc; border-radius: 6px; padding: 1rem; margin: 0.75rem 0; position: relative; }
+      :root {
+        --bg: #f4f6f8;
+        --card: #ffffff;
+        --border: #d9dee3;
+        --accent: #2a6db0;
+        --text: #222;
+        --muted: #666;
+      }
+      * { box-sizing: border-box; }
+      body { font-family: system-ui, sans-serif; margin: 0; background: var(--bg); color: var(--text); }
+      header { background: var(--accent); color: #fff; padding: 1rem 1.5rem; display: flex; align-items: center; gap: 1.5rem; }
+      header h1 { margin: 0; font-size: 1.3rem; }
+      nav button { background: transparent; border: none; color: #dbe8f5; font-size: 1rem; cursor: pointer; padding: 0.4rem 0.8rem; border-radius: 6px; }
+      nav button.active { background: rgba(255,255,255,0.2); color: #fff; font-weight: bold; }
+      main { max-width: 1000px; margin: 1.5rem auto; padding: 0 1rem; }
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+      .card.editing { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(42,109,176,0.15); }
+      label { display: block; margin: 0.5rem 0 0.2rem; font-weight: 600; font-size: 0.9rem; }
+      input, select { font-size: 0.95rem; padding: 0.45rem; width: 100%; border: 1px solid var(--border); border-radius: 5px; background: #fff; }
+      button.action { font-size: 0.95rem; padding: 0.5rem 1rem; margin-top: 0.6rem; background: var(--accent); color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+      button.action:hover { background: #23598f; }
+      button.secondary { background: #eef2f6; color: #333; }
+      button.secondary:hover { background: #e2e8ee; }
+      .row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+      .row > * { flex: 1; min-width: 120px; }
+      .project { border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin: 0.75rem 0; background: #fff; }
       .project h3 { margin: 0 0 0.3rem; }
-      .milestone { margin-left: 1rem; }
-      .done { color: #2a5; }
+      .sub { color: var(--muted); font-size: 0.9rem; }
+      .task, .milestone { margin-left: 1rem; font-size: 0.92rem; }
+      .done { color: #2a8; }
       .pending { color: #a60; }
-      .error { color: #c00; font-weight: bold; }
-      #summary { margin-top: 1rem; font-size: 1.1rem; color: #2a5; font-weight: bold; }
-      fieldset { margin-top: 1rem; }
-      .pending-ms { font-size: 0.95rem; color: #555; margin: 0.3rem 0; }
-      .row { display: flex; gap: 0.5rem; }
-      .delete-btn { background: #fee; border: 1px solid #c99; color: #c00; padding: 0.3rem 0.7rem; font-size: 0.9rem; margin-top: 0.5rem; }
+      .error { color: #c00; font-weight: bold; min-height: 1.2rem; }
+      .pending-item { font-size: 0.9rem; color: #444; margin: 0.25rem 0; display: flex; align-items: center; gap: 0.5rem; }
+      .pending-item .txt { cursor: pointer; flex: 1; padding: 0.15rem 0.3rem; border-radius: 4px; }
+      .pending-item .txt:hover { background: #eef4fb; }
+      .pending-item .rm { cursor: pointer; color: #c00; border: 1px solid #e0aaaa; background: #fff5f5; border-radius: 4px; padding: 0 0.4rem; font-size: 0.85rem; }
+      .btn-group { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+      .edit-btn { background: #eef4fb; border: 1px solid #a9c8e6; color: #23598f; padding: 0.3rem 0.7rem; font-size: 0.85rem; border-radius: 5px; cursor: pointer; }
+      .edit-btn:hover { background: #deebf8; }
+      .delete-btn { background: #fee; border: 1px solid #c99; color: #c00; padding: 0.3rem 0.7rem; font-size: 0.85rem; border-radius: 5px; cursor: pointer; }
       .delete-btn:hover { background: #fdd; }
+      fieldset { border: 1px solid var(--border); border-radius: 6px; margin-top: 0.8rem; }
+      legend { font-weight: 600; font-size: 0.9rem; padding: 0 0.4rem; }
+      #summary { font-weight: bold; color: var(--accent); margin-top: 0.5rem; }
+      .hidden { display: none; }
+      .gantt-controls { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+      .gantt-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
+
+      /* Fix A: let the Gantt view use more of the screen than the 1000px form column. */
+      #gantt-view.wide {
+        width: 95vw;
+        max-width: 1600px;
+        margin-left: calc(-47.5vw + 50%); /* re-center the widened block */
+      }
     </style>
   </head>
   <body>
-    <h1>PM Scheduler</h1>
+    <header>
+      <h1>📅 PM Scheduler</h1>
+      <nav>
+        <button id="nav-overview" class="active">Overview</button>
+        <button id="nav-gantt">Gantt</button>
+      </nav>
+    </header>
 
-    <fieldset>
-      <legend>Load a saved schedule</legend>
-      <input id="load-input" type="file" accept=".json,application/json" />
-    </fieldset>
+    <main>
+      <!-- ================= OVERVIEW VIEW ================= -->
+      <section id="overview-view">
+        <div class="card">
+          <fieldset>
+            <legend>Load a saved schedule</legend>
+            <input id="load-input" type="file" accept=".json,application/json" />
+          </fieldset>
+        </div>
 
-    <label for="name">Project name</label>
-    <input id="name" type="text" placeholder="e.g. Website Redesign" />
+        <div class="card" id="form-card">
+          <h2 style="margin-top:0;" id="form-title">Add a project</h2>
 
-    <label for="hours">Hours assigned</label>
-    <input id="hours" type="number" min="0" value="0" />
+          <label for="name">Project name</label>
+          <input id="name" type="text" placeholder="e.g. Website Redesign" />
 
-    <label for="colleagues">Colleagues (comma-separated)</label>
-    <input id="colleagues" type="text" placeholder="e.g. Alex, Sam, Jordan" />
+          <div class="row">
+            <div>
+              <label for="hours">Hours assigned</label>
+              <input id="hours" type="number" min="0" value="0" />
+            </div>
+            <div>
+              <label for="colleagues">Colleagues (comma-separated)</label>
+              <input id="colleagues" type="text" placeholder="e.g. Alex, Sam, Jordan" />
+            </div>
+          </div>
 
-    <fieldset>
-      <legend>Milestones for this project</legend>
-      <div class="row">
-        <input id="ms-title" type="text" placeholder="Milestone title" />
-        <input id="ms-date" type="date" />
-      </div>
-      <button id="add-ms-btn">Add milestone</button>
-      <div id="pending-ms-list"></div>
-    </fieldset>
+          <datalist id="assignee-options"></datalist>
 
-    <button id="add-btn">Add project</button>
-    <p id="error" class="error"></p>
+          <fieldset>
+            <legend>Tasks (bars on the Gantt)</legend>
+            <div class="row">
+              <input id="task-title" type="text" placeholder="Task title" />
+              <input id="task-assignee" type="text" list="assignee-options" placeholder="Assignee" />
+            </div>
+            <div class="row">
+              <div>
+                <label for="task-start">Start</label>
+                <input id="task-start" type="date" />
+              </div>
+              <div>
+                <label for="task-end">End</label>
+                <input id="task-end" type="date" />
+              </div>
+            </div>
+            <button class="action secondary" id="add-task-btn">Add task</button>
+            <div id="pending-task-list"></div>
+          </fieldset>
 
-    <h2>Projects</h2>
-    <div id="project-list"></div>
-    <div id="summary"></div>
+          <fieldset>
+            <legend>Milestones (diamond markers on the Gantt)</legend>
+            <div class="row">
+              <input id="ms-title" type="text" placeholder="Milestone title" />
+              <input id="ms-date" type="date" />
+            </div>
+            <button class="action secondary" id="add-ms-btn">Add milestone</button>
+            <div id="pending-ms-list"></div>
+          </fieldset>
 
-    <div class="row" style="align-items: flex-end;">
-      <div style="flex: 1;">
-        <label for="filename">File name</label>
-        <input id="filename" type="text" value="schedule" placeholder="schedule" />
-      </div>
-      <button id="save-btn">💾 Save</button>
-    </div>
+          <div class="btn-group">
+            <button class="action" id="add-btn">Add project</button>
+            <button class="action secondary hidden" id="cancel-edit-btn">Cancel edit</button>
+          </div>
+          <p id="error" class="error"></p>
+        </div>
+
+        <div class="card">
+          <h2 style="margin-top:0;">Projects</h2>
+          <div id="project-list"></div>
+          <div id="summary"></div>
+        </div>
+
+        <div class="card">
+          <div class="row" style="align-items:flex-end;">
+            <div>
+              <label for="filename">File name</label>
+              <input id="filename" type="text" value="schedule" placeholder="schedule" />
+            </div>
+            <button class="action" id="save-btn">💾 Save JSON</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= GANTT VIEW ================= -->
+      <section id="gantt-view" class="hidden">
+        <div class="card">
+          <div class="gantt-controls">
+            <div>
+              <label style="display:inline;">Group by:</label>
+              <label style="display:inline; font-weight:normal;">
+                <input type="radio" name="group-by" value="project" checked style="width:auto;" /> Project
+              </label>
+              <label style="display:inline; font-weight:normal;">
+                <input type="radio" name="group-by" value="employee" style="width:auto;" /> Employee
+              </label>
+            </div>
+            <button class="action secondary" id="download-svg-btn">⬇ Download .svg</button>
+          </div>
+          <p id="gantt-error" class="error"></p>
+        </div>
+
+        <div class="card">
+          <div class="gantt-scroll" id="gantt-container"></div>
+        </div>
+      </section>
+    </main>
 
     <script type="module">
-      import init, { make_project, total_hours, serialize_projects, load_projects }
+      import init, { make_project, total_hours, serialize_projects, load_projects, build_gantt }
         from "./pkg/pm_scheduler.js";
-      // Register the service worker for offline capability.
-        if ("serviceWorker" in navigator) {
-          window.addEventListener("load", () => {
-            navigator.serviceWorker
-              .register("./sw.js")
-              .then((reg) => console.log("Service Worker registered:", reg.scope))
-              .catch((err) => console.error("Service Worker registration failed:", err));
-          });
-        }
+
+      // Only register the service worker when NOT developing on localhost,
+      // so local changes always show immediately.
+      if ("serviceWorker" in navigator && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("./sw.js")
+            .then((reg) => console.log("Service Worker registered:", reg.scope))
+            .catch((err) => console.error("Service Worker registration failed:", err));
+        });
+      }
 
       let projects = [];
+      let pendingTasks = [];
       let pendingMilestones = [];
+      let currentSvg = null;
+      let editIndex = null; // null = adding new; number = editing that project index
+
+      const PALETTE = ["#2a6db0", "#c0693e", "#3c9a5f", "#8e5bb5", "#c94f7c", "#4fa3b0", "#b0972a", "#6b7280"];
+      function colorFor(name) {
+        let h = 0;
+        for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 100000;
+        return PALETTE[h % PALETTE.length];
+      }
 
       async function run() {
         await init();
@@ -86,10 +211,61 @@
         const nameInput = document.getElementById("name");
         const hoursInput = document.getElementById("hours");
         const colleaguesInput = document.getElementById("colleagues");
+        const errorEl = document.getElementById("error");
+        const taskTitle = document.getElementById("task-title");
+        const taskAssignee = document.getElementById("task-assignee");
+        const taskStart = document.getElementById("task-start");
+        const taskEnd = document.getElementById("task-end");
         const msTitle = document.getElementById("ms-title");
         const msDate = document.getElementById("ms-date");
-        const errorEl = document.getElementById("error");
+        const addBtn = document.getElementById("add-btn");
+        const cancelBtn = document.getElementById("cancel-edit-btn");
+        const formTitle = document.getElementById("form-title");
+        const formCard = document.getElementById("form-card");
 
+        // --- Tab navigation ---
+        const navOverview = document.getElementById("nav-overview");
+        const navGantt = document.getElementById("nav-gantt");
+        navOverview.addEventListener("click", () => showView("overview"));
+        navGantt.addEventListener("click", () => showView("gantt"));
+
+        function showView(which) {
+          const overview = document.getElementById("overview-view");
+          const gantt = document.getElementById("gantt-view");
+          if (which === "gantt") {
+            overview.classList.add("hidden");
+            gantt.classList.remove("hidden");
+            gantt.classList.add("wide");            // widen for Gantt
+            navOverview.classList.remove("active");
+            navGantt.classList.add("active");
+            renderGantt();
+          } else {
+            gantt.classList.add("hidden");
+            gantt.classList.remove("wide");         // reset when leaving
+            overview.classList.remove("hidden");
+            navGantt.classList.remove("active");
+            navOverview.classList.add("active");
+          }
+        }
+
+        colleaguesInput.addEventListener("input", refreshAssigneeOptions);
+
+        // --- Add a task to pending ---
+        document.getElementById("add-task-btn").addEventListener("click", () => {
+          const title = taskTitle.value.trim();
+          if (!title) return;
+          pendingTasks.push({
+            title: title,
+            assignee: taskAssignee.value.trim(),
+            start_date: taskStart.value || "",
+            end_date: taskEnd.value || "",
+            completed: false,
+          });
+          taskTitle.value = ""; taskAssignee.value = ""; taskStart.value = ""; taskEnd.value = "";
+          renderPending();
+        });
+
+        // --- Add a milestone to pending ---
         document.getElementById("add-ms-btn").addEventListener("click", () => {
           const title = msTitle.value.trim();
           if (!title) return;
@@ -98,117 +274,208 @@
             due_date: msDate.value || "",
             completed: false,
           });
-          msTitle.value = "";
-          msDate.value = "";
-          renderPendingMilestones();
+          msTitle.value = ""; msDate.value = "";
+          renderPending();
         });
 
-        document.getElementById("add-btn").addEventListener("click", () => {
+        // --- Add OR update project ---
+        addBtn.addEventListener("click", () => {
           errorEl.textContent = "";
           const name = nameInput.value;
           const hours = parseInt(hoursInput.value, 10) || 0;
           const colleagues = colleaguesInput.value;
 
           const resultJson = make_project(
-            name, hours, colleagues, JSON.stringify(pendingMilestones)
+            name, hours, colleagues,
+            JSON.stringify(pendingTasks),
+            JSON.stringify(pendingMilestones)
           );
           const result = JSON.parse(resultJson);
+          if (result.error) { errorEl.textContent = result.error; return; }
 
-          if (result.error) {
-            errorEl.textContent = result.error;
-            return;
+          if (editIndex !== null) {
+            projects[editIndex] = result;   // replace in place
+          } else {
+            projects.push(result);          // add new
           }
-
-          projects.push(result);
-          nameInput.value = "";
-          hoursInput.value = "0";
-          colleaguesInput.value = "";
-          pendingMilestones = [];
-          renderPendingMilestones();
+          resetForm();
+          refreshAssigneeOptions();
           render();
         });
 
+        // --- Cancel edit ---
+        cancelBtn.addEventListener("click", resetForm);
+
+        function resetForm() {
+          editIndex = null;
+          nameInput.value = "";
+          hoursInput.value = "0";
+          colleaguesInput.value = "";
+          pendingTasks = [];
+          pendingMilestones = [];
+          taskTitle.value = ""; taskAssignee.value = ""; taskStart.value = ""; taskEnd.value = "";
+          msTitle.value = ""; msDate.value = "";
+          formTitle.textContent = "Add a project";
+          addBtn.textContent = "Add project";
+          cancelBtn.classList.add("hidden");
+          formCard.classList.remove("editing");
+          errorEl.textContent = "";
+          renderPending();
+        }
+
+        // Load a project into the form for editing.
+        function editProject(index) {
+          const p = projects[index];
+          editIndex = index;
+          nameInput.value = p.name;
+          hoursInput.value = p.hours_assigned;
+          colleaguesInput.value = (p.colleagues || []).join(", ");
+          pendingTasks = (p.tasks || []).map(t => ({ ...t }));
+          pendingMilestones = (p.milestones || []).map(m => ({ ...m }));
+          formTitle.textContent = "Editing: " + p.name;
+          addBtn.textContent = "💾 Update project";
+          cancelBtn.classList.remove("hidden");
+          formCard.classList.add("editing");
+          refreshAssigneeOptions();
+          renderPending();
+          formCard.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+
+        // Pull a pending task back into the input fields to modify it.
+        function editPendingTask(i) {
+          const t = pendingTasks[i];
+          taskTitle.value = t.title;
+          taskAssignee.value = t.assignee || "";
+          taskStart.value = t.start_date || "";
+          taskEnd.value = t.end_date || "";
+          pendingTasks.splice(i, 1);
+          renderPending();
+          taskTitle.focus();
+        }
+        function editPendingMilestone(i) {
+          const m = pendingMilestones[i];
+          msTitle.value = m.title;
+          msDate.value = m.due_date || "";
+          pendingMilestones.splice(i, 1);
+          renderPending();
+          msTitle.focus();
+        }
+
+        // --- Save JSON ---
         document.getElementById("save-btn").addEventListener("click", () => {
-          if (projects.length === 0) {
-            errorEl.textContent = "Nothing to save yet.";
-            return;
-          }
-
-          // Read the user's chosen filename, with sensible fallbacks.
+          if (projects.length === 0) { errorEl.textContent = "Nothing to save yet."; return; }
           let filename = document.getElementById("filename").value.trim();
-          if (!filename) {
-            filename = "schedule"; // fallback if left blank
-          }
-          // Auto-append .json if the user didn't include it.
-          if (!filename.toLowerCase().endsWith(".json")) {
-            filename += ".json";
-          }
-
+          if (!filename) filename = "schedule";
+          if (!filename.toLowerCase().endsWith(".json")) filename += ".json";
           const json = serialize_projects(JSON.stringify(projects));
-          downloadFile(filename, json);
+          downloadFile(filename, json, "application/json");
         });
 
+        // --- Load JSON ---
         document.getElementById("load-input").addEventListener("change", (event) => {
           errorEl.textContent = "";
           const file = event.target.files[0];
           if (!file) return;
-
           const reader = new FileReader();
-
           reader.onload = () => {
-            const text = reader.result;
-            const resultJson = load_projects(text);
-            const result = JSON.parse(resultJson);
-
-            if (result.error) {
-              errorEl.textContent = result.error;
-              return;
-            }
-
+            const result = JSON.parse(load_projects(reader.result));
+            if (result.error) { errorEl.textContent = result.error; return; }
             projects = result;
-            pendingMilestones = [];
-            renderPendingMilestones();
+            resetForm();
+            refreshAssigneeOptions();
             render();
           };
-
-          reader.onerror = () => {
-            errorEl.textContent = "Could not read that file.";
-          };
-
+          reader.onerror = () => { errorEl.textContent = "Could not read that file."; };
           reader.readAsText(file);
           event.target.value = "";
         });
 
+        // --- Gantt controls ---
+        document.querySelectorAll('input[name="group-by"]').forEach((radio) => {
+          radio.addEventListener("change", renderGantt);
+        });
+        document.getElementById("download-svg-btn").addEventListener("click", () => {
+          if (!currentSvg) { document.getElementById("gantt-error").textContent = "Nothing to download yet."; return; }
+          let filename = document.getElementById("filename").value.trim() || "gantt";
+          filename = filename.replace(/\.json$/i, "");
+          downloadFile(filename + ".svg", currentSvg, "image/svg+xml");
+        });
+
+        // Re-render the Gantt on window resize (responsive scaling).
+        let resizeTimer = null;
+        window.addEventListener("resize", () => {
+          if (document.getElementById("gantt-view").classList.contains("hidden")) return;
+          clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(renderGantt, 150);
+        });
+
+        // Expose the per-item handlers to the render functions.
+        window.__pm = { editProject, editPendingTask, editPendingMilestone };
+
         render();
-        renderPendingMilestones();
+        renderPending();
+        refreshAssigneeOptions();
       }
 
-      function downloadFile(filename, text) {
-        const blob = new Blob([text], { type: "application/json" });
+      function downloadFile(filename, text, mime) {
+        const blob = new Blob([text], { type: mime });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
         URL.revokeObjectURL(url);
       }
 
-      // Delete a project by its index, then refresh.
+      function refreshAssigneeOptions() {
+        const set = new Set();
+        document.getElementById("colleagues").value
+          .split(",").map(s => s.trim()).filter(Boolean).forEach(c => set.add(c));
+        projects.forEach(p => (p.colleagues || []).forEach(c => set.add(c)));
+        const dl = document.getElementById("assignee-options");
+        dl.innerHTML = "";
+        set.forEach(c => { const o = document.createElement("option"); o.value = c; dl.appendChild(o); });
+      }
+
       function deleteProject(index) {
         projects.splice(index, 1);
         render();
       }
 
-      function renderPendingMilestones() {
-        const el = document.getElementById("pending-ms-list");
-        el.innerHTML = "";
-        pendingMilestones.forEach((m) => {
-          const d = document.createElement("div");
-          d.className = "pending-ms";
-          d.textContent = `• ${m.title}${m.due_date ? " (due " + m.due_date + ")" : ""}`;
-          el.appendChild(d);
+      function renderPending() {
+        const tl = document.getElementById("pending-task-list");
+        tl.innerHTML = "";
+        pendingTasks.forEach((t, i) => {
+          const row = document.createElement("div");
+          row.className = "pending-item";
+          const who = t.assignee ? ` — ${t.assignee}` : "";
+          const span = (t.start_date || t.end_date) ? ` (${t.start_date || "?"} → ${t.end_date || "?"})` : "";
+          const txt = document.createElement("span");
+          txt.className = "txt";
+          txt.textContent = `• ${t.title}${who}${span}`;
+          txt.title = "Click to edit this task";
+          txt.addEventListener("click", () => window.__pm.editPendingTask(i));
+          const rm = document.createElement("span");
+          rm.className = "rm"; rm.textContent = "×"; rm.title = "Remove task";
+          rm.addEventListener("click", () => { pendingTasks.splice(i, 1); renderPending(); });
+          row.appendChild(txt); row.appendChild(rm);
+          tl.appendChild(row);
+        });
+
+        const ml = document.getElementById("pending-ms-list");
+        ml.innerHTML = "";
+        pendingMilestones.forEach((m, i) => {
+          const row = document.createElement("div");
+          row.className = "pending-item";
+          const txt = document.createElement("span");
+          txt.className = "txt";
+          txt.textContent = `◆ ${m.title}${m.due_date ? " (" + m.due_date + ")" : ""}`;
+          txt.title = "Click to edit this milestone";
+          txt.addEventListener("click", () => window.__pm.editPendingMilestone(i));
+          const rm = document.createElement("span");
+          rm.className = "rm"; rm.textContent = "×"; rm.title = "Remove milestone";
+          rm.addEventListener("click", () => { pendingMilestones.splice(i, 1); renderPending(); });
+          row.appendChild(txt); row.appendChild(rm);
+          ml.appendChild(row);
         });
       }
 
@@ -219,32 +486,49 @@
         projects.forEach((p, index) => {
           const div = document.createElement("div");
           div.className = "project";
-          const people = p.colleagues.length ? p.colleagues.join(", ") : "(none)";
+          const people = (p.colleagues && p.colleagues.length) ? p.colleagues.join(", ") : "(none)";
 
-          let milestonesHtml = "";
-          if (p.milestones.length) {
-            milestonesHtml = "<div><strong>Milestones:</strong></div>";
+          let tasksHtml = "";
+          if (p.tasks && p.tasks.length) {
+            tasksHtml = "<div><strong>Tasks:</strong></div>";
+            p.tasks.forEach((t) => {
+              const cls = t.completed ? "done" : "pending";
+              const status = t.completed ? "✓" : "○";
+              const who = t.assignee ? ` — ${t.assignee}` : "";
+              const span = (t.start_date || t.end_date) ? ` (${t.start_date || "?"} → ${t.end_date || "?"})` : "";
+              tasksHtml += `<div class="task ${cls}">${status} ${t.title}${who}${span}</div>`;
+            });
+          }
+
+          let msHtml = "";
+          if (p.milestones && p.milestones.length) {
+            msHtml = "<div><strong>Milestones:</strong></div>";
             p.milestones.forEach((m) => {
               const cls = m.completed ? "done" : "pending";
-              const status = m.completed ? "✓" : "○";
-              const date = m.due_date ? " — due " + m.due_date : "";
-              milestonesHtml +=
-                `<div class="milestone ${cls}">${status} ${m.title}${date}</div>`;
+              const date = m.due_date ? " — " + m.due_date : "";
+              msHtml += `<div class="milestone ${cls}">◆ ${m.title}${date}</div>`;
             });
           }
 
           div.innerHTML = `
             <h3>${p.name}</h3>
-            <div><strong>Hours:</strong> ${p.hours_assigned}</div>
-            <div><strong>Colleagues:</strong> ${people}</div>
-            ${milestonesHtml}
+            <div class="sub"><strong>Hours:</strong> ${p.hours_assigned} &nbsp;|&nbsp; <strong>Colleagues:</strong> ${people}</div>
+            ${tasksHtml}
+            ${msHtml}
           `;
 
+          const group = document.createElement("div");
+          group.className = "btn-group";
+          const editBtn = document.createElement("button");
+          editBtn.className = "edit-btn";
+          editBtn.textContent = "✏️ Edit";
+          editBtn.addEventListener("click", () => window.__pm.editProject(index));
           const delBtn = document.createElement("button");
           delBtn.className = "delete-btn";
           delBtn.textContent = "🗑 Delete";
           delBtn.addEventListener("click", () => deleteProject(index));
-          div.appendChild(delBtn);
+          group.appendChild(editBtn); group.appendChild(delBtn);
+          div.appendChild(group);
 
           listEl.appendChild(div);
         });
@@ -256,6 +540,132 @@
         } else {
           summaryEl.textContent = "No projects yet.";
         }
+      }
+
+      // ---------- GANTT RENDERING (pure SVG, responsive) ----------
+
+      function getGroupBy() {
+        const checked = document.querySelector('input[name="group-by"]:checked');
+        return checked ? checked.value : "project";
+      }
+
+      function dayNumber(iso) {
+        const d = new Date(iso + "T00:00:00");
+        return Math.floor(d.getTime() / 86400000);
+      }
+
+      function renderGantt() {
+        const container = document.getElementById("gantt-container");
+        const errEl = document.getElementById("gantt-error");
+        errEl.textContent = "";
+        container.innerHTML = "";
+        currentSvg = null;
+
+        if (projects.length === 0) {
+          container.innerHTML = '<p style="padding:1rem;color:#666;">No projects to chart yet.</p>';
+          return;
+        }
+
+        const data = JSON.parse(build_gantt(JSON.stringify(projects), getGroupBy()));
+        if (data.error) { errEl.textContent = data.error; return; }
+
+        let allDays = [];
+        data.rows.forEach((row) => {
+          row.tasks.forEach((t) => { if (t.start) allDays.push(dayNumber(t.start)); if (t.end) allDays.push(dayNumber(t.end)); });
+          row.milestones.forEach((m) => { if (m.date) allDays.push(dayNumber(m.date)); });
+          if (row.project_start) allDays.push(dayNumber(row.project_start));
+          if (row.project_end) allDays.push(dayNumber(row.project_end));
+        });
+
+        if (allDays.length === 0) {
+          container.innerHTML = '<p style="padding:1rem;color:#666;">No dates set yet. Add start/end dates to tasks (or dates to milestones) to see the timeline.</p>';
+          return;
+        }
+
+        const minDay = Math.min(...allDays);
+        const maxDay = Math.max(...allDays);
+        const totalDays = Math.max(1, maxDay - minDay);
+
+        // --- Responsive day-width: fill the container, else scroll ---
+        const labelW = 170;
+        const rightPad = 40;
+        const measured = container.clientWidth || 900;
+        const available = Math.max(200, measured - labelW - rightPad);
+        const dayW = Math.max(5, available / totalDays);
+
+        // Fix B: roomier layout — taller rows, bigger bars/fonts.
+        const rowH = 46;
+        const headerH = 48;
+        const topPad = headerH + 10;
+        const chartW = labelW + totalDays * dayW + rightPad;
+        const chartH = topPad + data.rows.length * rowH + 24;
+
+        const xFor = (day) => labelW + (day - minDay) * dayW;
+
+        let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${chartW}" height="${chartH}" font-family="system-ui, sans-serif" font-size="14">`;
+        svg += `<rect x="0" y="0" width="${chartW}" height="${chartH}" fill="#ffffff"/>`;
+
+        const labelStep = Math.max(1, Math.round(totalDays / 12));
+        for (let d = minDay; d <= maxDay; d += labelStep) {
+          const x = xFor(d);
+          svg += `<line x1="${x}" y1="${headerH}" x2="${x}" y2="${chartH}" stroke="#eee" stroke-width="1"/>`;
+          const dateStr = new Date(d * 86400000).toISOString().slice(0, 10);
+          svg += `<text x="${x + 2}" y="${headerH - 8}" fill="#666" font-size="11">${dateStr}</text>`;
+        }
+
+        const today = Math.floor(Date.now() / 86400000);
+        if (today >= minDay && today <= maxDay) {
+          const tx = xFor(today);
+          svg += `<line x1="${tx}" y1="${headerH}" x2="${tx}" y2="${chartH}" stroke="#c00" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+          svg += `<text x="${tx + 3}" y="${chartH - 6}" fill="#c00" font-size="11">today</text>`;
+        }
+
+        data.rows.forEach((row, i) => {
+          const y = topPad + i * rowH;
+          svg += `<text x="8" y="${y + rowH / 2 + 4}" fill="#222" font-weight="600">${escapeXml(truncate(row.label, 24))}</text>`;
+          svg += `<line x1="0" y1="${y + rowH}" x2="${chartW}" y2="${y + rowH}" stroke="#f0f0f0"/>`;
+
+          if (row.kind === "project" && row.project_start && row.project_end) {
+            const x1 = xFor(dayNumber(row.project_start));
+            const x2 = xFor(dayNumber(row.project_end));
+            const c = colorFor(row.label);
+            svg += `<rect x="${x1}" y="${y + 5}" width="${Math.max(2, x2 - x1)}" height="8" rx="4" fill="${c}" opacity="0.35"/>`;
+          }
+
+          row.tasks.forEach((t) => {
+            if (!t.start || !t.end) return;
+            const x1 = xFor(dayNumber(t.start));
+            const x2 = xFor(dayNumber(t.end));
+            const c = colorFor(t.project);
+            const barY = y + 16;
+            svg += `<rect x="${x1}" y="${barY}" width="${Math.max(3, x2 - x1)}" height="20" rx="4" fill="${c}" opacity="${t.completed ? 0.5 : 1}">`;
+            svg += `<title>${escapeXml(t.title)} (${t.assignee || "unassigned"})\n${t.start} → ${t.end}${t.completed ? "\n[completed]" : ""}</title></rect>`;
+            if (x2 - x1 > 44) {
+              svg += `<text x="${x1 + 5}" y="${barY + 14}" fill="#fff" font-size="11">${escapeXml(truncate(t.title, 16))}</text>`;
+            }
+          });
+
+          row.milestones.forEach((m) => {
+            if (!m.date) return;
+            const x = xFor(dayNumber(m.date));
+            const my = y + 26;
+            const s = 8;
+            const fill = m.completed ? "#2a8" : "#a60";
+            svg += `<polygon points="${x},${my - s} ${x + s},${my} ${x},${my + s} ${x - s},${my}" fill="${fill}" stroke="#fff" stroke-width="1">`;
+            svg += `<title>◆ ${escapeXml(m.title)} (${m.date})${m.completed ? " [completed]" : ""}</title></polygon>`;
+          });
+        });
+
+        svg += `</svg>`;
+        currentSvg = svg;
+        container.innerHTML = svg;
+      }
+
+      function truncate(s, n) { return s.length > n ? s.slice(0, n - 1) + "…" : s; }
+      function escapeXml(s) {
+        return String(s)
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
       }
 
       run();

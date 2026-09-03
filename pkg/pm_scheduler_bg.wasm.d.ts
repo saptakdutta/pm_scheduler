@@ -1,8 +1,9 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
+export const build_gantt: (a: number, b: number, c: number, d: number) => [number, number];
 export const load_projects: (a: number, b: number) => [number, number];
-export const make_project: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
+export const make_project: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
 export const serialize_projects: (a: number, b: number) => [number, number];
 export const total_hours: (a: number, b: number) => number;
 export const __wbindgen_externrefs: WebAssembly.Table;

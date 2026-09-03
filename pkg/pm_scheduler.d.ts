@@ -1,9 +1,11 @@
 /* tslint:disable */
 /* eslint-disable */
 
+export function build_gantt(projects_json: string, group_by: string): string;
+
 export function load_projects(file_contents: string): string;
 
-export function make_project(name: string, hours: number, colleagues_csv: string, milestones_json: string): string;
+export function make_project(name: string, hours: number, colleagues_csv: string, tasks_json: string, milestones_json: string): string;
 
 export function serialize_projects(projects_json: string): string;
 
@@ -13,8 +15,9 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
+    readonly build_gantt: (a: number, b: number, c: number, d: number) => [number, number];
     readonly load_projects: (a: number, b: number) => [number, number];
-    readonly make_project: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
+    readonly make_project: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number];
     readonly serialize_projects: (a: number, b: number) => [number, number];
     readonly total_hours: (a: number, b: number) => number;
     readonly __wbindgen_externrefs: WebAssembly.Table;
